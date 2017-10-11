@@ -154,14 +154,17 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-    uint32_t size = sizeof(struct PageInfo) * npages;
-    pages = (struct PageInfo *) boot_alloc(size);
-    memset(pages, 0, size);
+    uint32_t size_pages = sizeof(struct PageInfo) * npages;
+    pages = (struct PageInfo *) boot_alloc(size_pages);
+    memset(pages, 0, size_pages);
 
 
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
+    uint32_t size_envs = sizeof(struct Env) * NENV;
+    envs = (struct Env *) boot_alloc(size_envs);
+    memset(envs, 0, size_envs);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -186,7 +189,6 @@ mem_init(void)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
     boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
-    cprintf("map pages to UPAGES\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
@@ -195,6 +197,7 @@ mem_init(void)
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
+    boot_map_region(kern_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -208,7 +211,6 @@ mem_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
     boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
-    cprintf("map bootstack to KSTACKTOP - KSTKSIZE\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -219,7 +221,6 @@ mem_init(void)
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
     boot_map_region(kern_pgdir, KERNBASE, (~KERNBASE) + 1, 0, PTE_W);
-    cprintf("map 0 to KERNBASE\n");
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
