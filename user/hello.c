@@ -4,6 +4,10 @@
 void
 umain(int argc, char **argv)
 {
+    asm volatile("int $3");
+    int a = 1;
+    int b = 2;
+    cprintf("%d %d\n", a, b);
 	cprintf("hello, world\n");
 	cprintf("i am environment %08x\n", thisenv->env_id);
 }
