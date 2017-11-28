@@ -25,6 +25,13 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
+    if (!((err & FEC_WR) && (uvpd[PDX(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_COW))) {
+        if (!(err & FEC_WR)) {
+            panic("pgfault: not a write");
+        } else {
+            panic("pgfault: not write to a COW");
+        }
+    }
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
@@ -34,7 +41,12 @@ pgfault(struct UTrapframe *utf)
 
 	// LAB 4: Your code here.
 
-	panic("pgfault not implemented");
+	//panic("pgfault not implemented");
+    addr = (void *) ROUNDDOWN((uint32_t) addr, PGSIZE);
+    sys_page_alloc(0, PFTEMP, PTE_P | PTE_U | PTE_W);
+    memcpy(PFTEMP, addr, PGSIZE);
+    sys_page_map(0, PFTEMP, 0, addr, PTE_P | PTE_U | PTE_W);
+    sys_page_unmap(0, PFTEMP);
 }
 
 //
@@ -54,7 +66,14 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	//panic("duppage not implemented");
+    void *addr = (void *) (pn * PGSIZE);
+    if ((uvpt[PGNUM(addr)] & PTE_COW) || (uvpt[PGNUM(addr)] & PTE_W)) {
+        sys_page_map(0, addr, envid, addr, PTE_P | PTE_U | PTE_COW);
+        sys_page_map(0, addr, 0, addr, PTE_P | PTE_U | PTE_COW);
+    } else {
+        sys_page_map(0, addr, envid, addr, PTE_P | PTE_U);
+    }
 	return 0;
 }
 
@@ -78,7 +97,34 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+	//panic("fork not implemented");
+    set_pgfault_handler(pgfault);
+
+    envid_t envid;
+    envid = sys_exofork();
+    // in user mode cannot use envid2env
+    /*
+    struct Env *env;
+    envid2env(envid, &env, 1);
+    */
+    
+    if (envid > 0) {
+        for (uint32_t addr = 0; addr < UTOP - PGSIZE; addr += PGSIZE) {
+            if ((uvpd[PDX(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_U)) {
+                duppage(envid, addr / PGSIZE);
+            }
+        }
+        sys_page_alloc(envid, (void *) (UXSTACKTOP - PGSIZE), PTE_P | PTE_U | PTE_W);
+    } else {
+        thisenv = &envs[ENVX(sys_getenvid())];
+        return 0;
+    }
+
+    extern void _pgfault_upcall();
+    sys_env_set_pgfault_upcall(envid, _pgfault_upcall);
+    sys_env_set_status(envid, ENV_RUNNABLE);
+    
+    return envid;
 }
 
 // Challenge!
