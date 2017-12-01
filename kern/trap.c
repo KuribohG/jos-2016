@@ -246,6 +246,12 @@ trap_dispatch(struct Trapframe *tf)
     } else if (tf->tf_trapno == T_SYSCALL) {
         tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
         return;
+    } else if (tf->tf_trapno == IRQ_OFFSET + IRQ_KBD) {
+        kbd_intr();
+        return;
+    } else if (tf->tf_trapno == IRQ_OFFSET + IRQ_SERIAL) {
+        serial_intr();
+        return;
     }
 
 	// Handle spurious interrupts
