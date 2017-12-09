@@ -61,8 +61,11 @@ i386_init(void)
 #else
 	// Touch all you want.
     ENV_CREATE(user_yield, ENV_TYPE_USER);
+    envs[0].env_priority = 2;
     ENV_CREATE(user_yield, ENV_TYPE_USER);
+    envs[1].env_priority = 1;
     ENV_CREATE(user_yield, ENV_TYPE_USER);
+    envs[2].env_priority = 0;
 #endif // TEST*
 
 	// Schedule and run the first user environment!
