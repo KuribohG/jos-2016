@@ -310,3 +310,20 @@ copy_shared_pages(envid_t child)
 	return 0;
 }
 
+#define CODETEMP 0xe0000000
+
+void
+exec(const char *program, const char **argv)
+{
+    int fd = open(program, O_RDONLY);
+    struct Stat statbuf;
+    fstat(fd, &statbuf);
+    uint32_t filesz = statbuf.st_size;
+    for (uint32_t i = CODETEMP; i < CODETEMP + ROUNDUP(filesz, PGSIZE); i += PGSIZE) {
+        sys_page_alloc(0, (void *) i, PTE_P | PTE_U | PTE_W);
+        readn(fd, (void *) i, PGSIZE);
+    }
+    close(fd);
+    sys_exec((void *) CODETEMP, argv);
+}
+

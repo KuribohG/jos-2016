@@ -4,6 +4,7 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+#include <inc/elf.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -11,6 +12,10 @@
 #include <kern/syscall.h>
 #include <kern/console.h>
 #include <kern/sched.h>
+
+#define UTEMP2USTACK(addr) ((void *) (addr) + (USTACKTOP - PGSIZE) - UTEMP)
+#define UTEMP2 (UTEMP + PGSIZE)
+#define UTEMP3 (UTEMP2 + PGSIZE)
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -454,6 +459,56 @@ sys_ipc_recv(void *dstva)
 	return 0;
 }
 
+static void
+sys_exec(void *binary, const char **argv)
+{
+    struct Elf *elfhdr = (struct Elf *) binary;
+    struct Proghdr *ph, *eph;
+
+    if (elfhdr->e_magic != ELF_MAGIC) {
+        panic("sys_exec: elf not correct");
+    }
+
+    ph = (struct Proghdr *) ((uint8_t *) elfhdr + elfhdr->e_phoff);
+    eph = ph + elfhdr->e_phnum;
+    for (; ph < eph; ph++) {
+        if (ph->p_type == ELF_PROG_LOAD) {
+            if (ph->p_filesz > ph->p_memsz) {
+                panic("sys_exec: filesz is greater than memsz");
+            }
+            region_alloc(curenv, (void *) ph->p_va, ph->p_memsz);
+            memset((void *) ph->p_va, 0, ph->p_memsz);
+            memcpy((void *) ph->p_va, binary + ph->p_offset, ph->p_filesz);
+        }
+    }
+
+    curenv->env_tf.tf_eip = elfhdr->e_entry;
+    curenv->env_tf.tf_esp = USTACKTOP;
+
+    int argc = 0;
+    size_t string_size = 0;
+    char *string_store;
+    uintptr_t *argv_store;
+    for (argc = 0; argv[argc] != 0; argc++)
+        string_size += strlen(argv[argc]) + 1;
+    string_store = (char *) UTEMP + PGSIZE - string_size;
+    argv_store = (uintptr_t *) (ROUNDDOWN(string_store, 4) - 4 * (argc + 1));
+    sys_page_alloc(0, (void *) UTEMP, PTE_P | PTE_U | PTE_W);
+    for (int i = 0; i < argc; i++) {
+        argv_store[i] = UTEMP2USTACK(string_store);
+        strcpy(string_store, argv[i]);
+        string_store += strlen(argv[i]) + 1;
+    }
+    argv_store[argc] = 0;
+    argv_store[-1] = UTEMP2USTACK(argv_store);
+    argv_store[-2] = argc;
+    curenv->env_tf.tf_esp = UTEMP2USTACK(&argv_store[-2]);
+    sys_page_map(0, UTEMP, curenv->env_id, (void *) (USTACKTOP - PGSIZE), PTE_P | PTE_U | PTE_W);
+    sys_page_unmap(0, UTEMP);
+    sched_yield();
+}
+
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -495,8 +550,12 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         return sys_ipc_recv((void *) a1);
     case SYS_env_set_trapframe:
         return sys_env_set_trapframe(a1, (struct Trapframe *) a2);
+    case SYS_exec:
+        sys_exec((void *) a1, (const char **) a2);
+        return 0;
 	default:
 		return -E_INVAL;
 	}
 }
+
 

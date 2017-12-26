@@ -68,4 +68,6 @@ struct Env {
 	int env_ipc_perm;		// Perm of page mapping received
 };
 
+void region_alloc(struct Env *e, void *va, size_t len);
+
 #endif // !JOS_INC_ENV_H
