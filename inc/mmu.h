@@ -42,17 +42,17 @@
 #define PGADDR(d, t, o)	((void*) ((d) << PDXSHIFT | (t) << PTXSHIFT | (o)))
 
 // Page directory and page table constants.
-#define NPDENTRIES	1024		// page directory entries per page directory
-#define NPTENTRIES	1024		// page table entries per page table
+#define NPDENTRIES	4096		// page directory entries per page directory
+#define NPTENTRIES	256		// page table entries per page table
 
 #define PGSIZE		4096		// bytes mapped by a page
 #define PGSHIFT		12		// log2(PGSIZE)
 
 #define PTSIZE		(PGSIZE*NPTENTRIES) // bytes mapped by a page directory entry
-#define PTSHIFT		22		// log2(PTSIZE)
+#define PTSHIFT		20		// log2(PTSIZE)
 
 #define PTXSHIFT	12		// offset of PTX in a linear address
-#define PDXSHIFT	22		// offset of PDX in a linear address
+#define PDXSHIFT	20		// offset of PDX in a linear address
 
 // Page table/directory entry flags.
 #define PTE_P		0x001	// Present

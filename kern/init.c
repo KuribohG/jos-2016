@@ -43,6 +43,15 @@ i386_init(void)
 		monitor(NULL);
 }
 
+void
+arm_init(void)
+{
+    cons_init();
+    cprintf("6828 decimal is %o octal!\n", 6828);
+    while(1)
+        monitor(NULL);
+}
+
 
 /*
  * Variable panicstr contains argument to first call to panic; used as flag
@@ -64,7 +73,7 @@ _panic(const char *file, int line, const char *fmt,...)
 	panicstr = fmt;
 
 	// Be extra sure that the machine is in as reasonable state
-	asm volatile("cli; cld");
+	// asm volatile("cli; cld");
 
 	va_start(ap, fmt);
 	cprintf("kernel panic at %s:%d: ", file, line);

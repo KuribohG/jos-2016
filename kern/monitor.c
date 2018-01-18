@@ -5,7 +5,7 @@
 #include <inc/string.h>
 #include <inc/memlayout.h>
 #include <inc/assert.h>
-#include <inc/x86.h>
+#include <inc/arm.h>
 
 #include <kern/console.h>
 #include <kern/monitor.h>
@@ -59,17 +59,11 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
     cprintf("Stack backtrace:\n");
-    uint32_t *addr = (uint32_t *)read_ebp();
+    uint32_t *addr = (uint32_t *)read_r11();
     while (addr) {
         uint32_t a[5];
-        for (int i = 0; i < 5; i++) {
-            a[i] = *(addr + i + 2); 
-        }
-        uint32_t *rip = addr + 1;
+        uint32_t *rip = addr;
         cprintf("  ebp %08x  eip %08x  args", addr, *rip);
-        for (int i = 0; i < 5; i++) {
-            cprintf(" %08x", a[i]);
-        }
         cprintf("\n");
         struct Eipdebuginfo info;
         debuginfo_eip(*rip, &info);
@@ -79,11 +73,10 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
         }
         cprintf("+");
         cprintf("%d\n", (*rip) - info.eip_fn_addr); 
-        addr = (uint32_t *)*addr;
-    }   
+        addr = (uint32_t *)*(addr - 1);
+    } 
 	return 0;
 }
-
 
 
 /***** Kernel monitor command interpreter *****/
